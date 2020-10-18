@@ -1,0 +1,167 @@
+---
+title: "Prediction assignment"
+author: "p sai praneeth"
+date: "10/18/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+## goal of this project is to predict using random forest regressor
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(randomForest)
+library(e1071)
+library(gbm)
+```
+
+
+
+# here we use the following Data given below taken from the websites as follows
+
+ training data : https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+test data : https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+
+
+
+```{r}
+set.seed(12345)
+tl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+t2 <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+t3 <- read.csv(url(tl), na.strings=c("NA","#DIV/0!",""))
+t4<- read.csv(url(t2), na.strings=c("NA","#DIV/0!",""))
+```
+
+
+```{r}
+it1 <- createDataPartition(t3$classe, p=0.6, list=FALSE)
+t5 <- t3[it1, ]
+t6 <- t3[-it1, ]
+dim(t5); dim(t6)
+```
+
+
+
+```{r}
+k1 <- nearZeroVar(t5, saveMetrics=TRUE)
+t5 <- t5[,k1$nzv==FALSE]
+k1<- nearZeroVar(t6,saveMetrics=TRUE)
+t6 <- t6[,k1$k1==FALSE]
+```
+
+```{r}
+t5 <- t5[c(-1)]
+```
+
+
+```{r}
+t7 <- t5
+for(i in 1:length(t5)) {
+    if( sum( is.na( t5[, i] ) ) /nrow(t5) >= .7) {
+        for(j in 1:length(t7)) {
+            if( length( grep(names(t5[i]), names(t7)[j]) ) == 1)  {
+                t7 <- t7[ , -j]
+            }   
+        } 
+    }
+}
+
+t5 <- t7
+rm(t7)
+```
+
+
+
+```{r}
+s1 <- colnames(t5)
+s2 <- colnames(t5[, -58])  # eliminate column which is classe
+t6 <- t6[s1]         
+t4 <- t4[s2]             
+dim(t6)
+```
+
+```{r}
+dim(t4)
+```
+
+
+
+```{r}
+for (i in 1:length(t4) ) {
+    for(j in 1:length(t5)) {
+        if( length( grep(names(t5[i]), names(t4)[j]) ) == 1)  {
+            class(t4[j]) <- class(t5[i])
+        }      
+    }      
+}
+
+t4 <- rbind(t5[2, -58] , t4)
+t4 <- t4[-1,]
+```
+
+```{r}
+set.seed(12345)
+w1 <- rpart(classe ~ ., data=t5, method="class")
+fancyRpartPlot(w1)
+```
+
+```{r}
+q1 <- predict(w1, t6, type = "class")
+c1 <- confusionMatrix(q1, t6$classe)
+c1
+```
+
+```{r}
+plot(cmtree$table, col = cmtree$byClass, main = paste("Decision Tree Confusion Matrix: Accuracy =", round(cmtree$overall['Accuracy'], 4)))
+```
+
+
+
+```{r}
+set.seed(12345)
+p1 <- randomForest(classe ~ ., data=t5)
+l1 <- predict(p1, t5, type = "class")
+b1 <- confusionMatrix(l1, t6$classe)
+b1
+```
+
+```{r}
+plot(b1)
+```
+
+```{r}
+plot(b1$table, col = cmtree$byClass, main = paste("Random Forest Confusion Matrix: Accuracy =", round(b1$overall['Accuracy'], 4)))
+```
+
+
+
+```{r}
+set.seed(12345)
+b4 <- trainControl(method = "repeatedcv",
+                           number = 5,
+                           repeats = 1)
+r1 <- train(classe ~ ., data=t5, method = "gbm",
+                 trControl = b4,
+                 verbose = FALSE)
+m1<- r1$finalModel
+k9 <- predict(r1, newdata=t6)
+c8 <- confusionMatrix(k9, t6$classe)
+c8
+```
+
+```{r}
+plot(r1, ylim = c(0.9,1))
+```
+
+
+
+```{r}
+b2 <- predict(b1, t4, type = "class")
+b2
+```
